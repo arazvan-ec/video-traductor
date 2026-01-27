@@ -38,6 +38,7 @@ class VideoDownloader:
         """Get video metadata without downloading."""
         cmd = [
             "yt-dlp",
+            "--no-check-certificate",
             "--dump-json",
             "--no-download",
             url
@@ -67,6 +68,7 @@ class VideoDownloader:
         print(f"Downloading: {info.title}")
         cmd = [
             "yt-dlp",
+            "--no-check-certificate",
             "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
             "-o", str(video_path),
             "--no-playlist",

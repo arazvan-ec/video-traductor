@@ -1,11 +1,10 @@
 # Core dependencies
 yt-dlp>=2024.1.0
-openai-whisper>=20231117
+faster-whisper>=1.0.0
 ffmpeg-python>=0.2.0
 deep-translator>=1.11.4
-pysrt>=1.1.2
 
-# Optional - for dubbing
+# For dubbing
 edge-tts>=6.1.9
 
 # Development

@@ -1,9 +1,9 @@
-"""Audio transcription using OpenAI Whisper."""
+"""Audio transcription using faster-whisper."""
 
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
-import whisper
+from faster_whisper import WhisperModel
 
 
 @dataclass
@@ -23,23 +23,28 @@ class Transcript:
 
 
 class AudioTranscriber:
-    """Transcribe audio using OpenAI Whisper."""
+    """Transcribe audio using faster-whisper."""
 
-    AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large"]
+    AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large-v2", "large-v3"]
 
     def __init__(self, model_size: str = "base"):
         """
         Initialize transcriber with specified model size.
 
         Args:
-            model_size: One of tiny, base, small, medium, large
+            model_size: One of tiny, base, small, medium, large-v2, large-v3
                        Larger models are more accurate but slower
         """
+        # Map old model names to new ones
+        if model_size == "large":
+            model_size = "large-v2"
+
         if model_size not in self.AVAILABLE_MODELS:
             raise ValueError(f"Model must be one of {self.AVAILABLE_MODELS}")
 
         print(f"Loading Whisper model: {model_size}")
-        self.model = whisper.load_model(model_size)
+        # Use CPU with int8 for faster inference without GPU
+        self.model = WhisperModel(model_size, device="cpu", compute_type="int8")
         self.model_size = model_size
 
     def transcribe(
@@ -59,25 +64,29 @@ class AudioTranscriber:
         """
         print(f"Transcribing: {audio_path}")
 
-        options = {"task": "transcribe"}
-        if language:
-            options["language"] = language
+        # Transcribe with faster-whisper
+        segments_gen, info = self.model.transcribe(
+            str(audio_path),
+            language=language,
+            beam_size=5
+        )
 
-        result = self.model.transcribe(str(audio_path), **options)
+        # Convert generator to list of Segment objects
+        segments = []
+        full_text_parts = []
 
-        segments = [
-            Segment(
-                start=seg["start"],
-                end=seg["end"],
-                text=seg["text"].strip()
-            )
-            for seg in result["segments"]
-        ]
+        for seg in segments_gen:
+            segments.append(Segment(
+                start=seg.start,
+                end=seg.end,
+                text=seg.text.strip()
+            ))
+            full_text_parts.append(seg.text.strip())
 
         return Transcript(
-            language=result["language"],
+            language=info.language,
             segments=segments,
-            full_text=result["text"].strip()
+            full_text=" ".join(full_text_parts)
         )
 
     def detect_language(self, audio_path: Path) -> str:
@@ -90,15 +99,6 @@ class AudioTranscriber:
         Returns:
             Language code (e.g., 'en', 'es', 'fr')
         """
-        # Load audio and pad/trim to 30 seconds for detection
-        audio = whisper.load_audio(str(audio_path))
-        audio = whisper.pad_or_trim(audio)
-
-        # Make log-Mel spectrogram
-        mel = whisper.log_mel_spectrogram(audio).to(self.model.device)
-
-        # Detect language
-        _, probs = self.model.detect_language(mel)
-        detected_lang = max(probs, key=probs.get)
-
-        return detected_lang
+        # Transcribe a small portion to detect language
+        _, info = self.model.transcribe(str(audio_path), beam_size=1)
+        return info.language
