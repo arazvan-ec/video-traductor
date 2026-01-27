@@ -1,0 +1,40 @@
+version: "1.0"
+
+project:
+  name: "Video Traductor"
+  description: "Herramienta para traducir videos de YouTube a diferentes idiomas"
+  type: "cli-tool"
+  language: "python"
+
+stack:
+  runtime: "python-3.11"
+  package_manager: "pip"
+
+dependencies:
+  core:
+    - yt-dlp          # Descarga videos de YouTube
+    - openai-whisper  # Transcripción de audio (local)
+    - ffmpeg-python   # Procesamiento de audio/video
+    - deep-translator # Traducción de texto
+    - pysrt           # Manejo de subtítulos SRT
+
+  optional:
+    - edge-tts        # Text-to-speech para doblaje
+    - moviepy         # Edición de video avanzada
+
+quality:
+  test_framework: "pytest"
+  coverage_target: 80
+  linting: "ruff"
+  formatting: "black"
+
+paths:
+  source: "src/"
+  tests: "tests/"
+  output: "output/"
+  temp: ".tmp/"
+
+workflow:
+  default_workflow: "default"
+  checkpoint_strategy: "git"
+  max_iterations: 10
